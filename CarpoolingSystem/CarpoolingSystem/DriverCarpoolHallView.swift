@@ -12,9 +12,9 @@ import CoreLocation
 // MARK: - Driver Carpool Hall View
 /// 司机端拼车大厅（商业级 SwiftUI 实现）
 struct DriverCarpoolHallView: View {
-    
+
     @StateObject private var viewModel: DriverViewModel
-    @State private var searchText: String = ""
+    // 🚫 搜索功能已禁用 - 司机只能通过拼车大厅浏览订单
     @State private var showFilterSheet: Bool = false
     @State private var showSortOptions: Bool = false
     @State private var selectedTrip: TripRequest?
@@ -33,14 +33,13 @@ struct DriverCarpoolHallView: View {
                 // 背景色
                 Color(.systemGroupedBackground)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
-                    // 搜索栏
-                    searchBar
-                    
+                    // 🚫 搜索栏已移除 - 司机只能通过大厅浏览
+
                     // 筛选和排序工具栏
                     filterToolbar
-                    
+
                     // 行程列表
                     if viewModel.isLoading && viewModel.filteredTrips.isEmpty {
                         loadingView
@@ -94,36 +93,8 @@ struct DriverCarpoolHallView: View {
         }
     }
     
-    // MARK: - Search Bar
-    
-    private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-            
-            TextField("搜索起点、终点或乘客姓名", text: $searchText)
-                .textFieldStyle(PlainTextFieldStyle())
-                .onChange(of: searchText) { newValue in
-                    viewModel.searchTrips(keyword: newValue)
-                }
-            
-            if !searchText.isEmpty {
-                Button(action: {
-                    searchText = ""
-                    viewModel.applyFilters()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-    }
-    
+    // MARK: - 🚫 搜索栏已完全移除 - 司机只能通过拼车大厅浏览订单
+
     // MARK: - Filter Toolbar
     
     private var filterToolbar: some View {
