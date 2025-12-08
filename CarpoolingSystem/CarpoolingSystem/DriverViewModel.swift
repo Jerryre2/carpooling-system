@@ -54,13 +54,14 @@ class DriverViewModel: ObservableObject {
     @Published var sortOption: SortOption = .departureTime
     
     // MARK: - Private Properties
-    
+
     private let tripService: TripRealtimeService
     private let notificationService: NotificationService
+    private let locationService: DriverLocationService  // 🎯 实时位置追踪服务
     private let currentDriverID: String
     private let currentDriverName: String
     private let currentDriverPhone: String
-    
+
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
@@ -71,9 +72,10 @@ class DriverViewModel: ObservableObject {
         self.currentDriverPhone = driverPhone
         self.tripService = TripRealtimeService(userID: driverID)
         self.notificationService = NotificationService.shared
-        
+        self.locationService = DriverLocationService(driverID: driverID)  // 🎯 初始化位置服务
+
         setupBindings()
-        
+
         print("🚗 DriverViewModel 初始化完成")
     }
     
@@ -124,6 +126,14 @@ class DriverViewModel: ObservableObject {
         $sortOption
             .sink { [weak self] _ in
                 self?.applySorting()
+            }
+            .store(in: &cancellables)
+
+        // 🎯 监听司机位置变化（实时同步）
+        locationService.$currentLocation
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] location in
+                self?.driverCurrentLocation = location
             }
             .store(in: &cancellables)
     }
@@ -208,7 +218,11 @@ class DriverViewModel: ObservableObject {
             if trip.numberOfPassengers >= 1 {
                 try await markTripAsAwaitingPayment(tripID: trip.id)
             }
-            
+
+            // 🎯 核心交付物：接单后立即开始实时位置追踪（每 3-5 秒上传）
+            locationService.startTracking(for: trip.id)
+            print("📍 已启动实时位置追踪")
+
             print("✅ 接单成功")
             
         } catch let error as NSError {
@@ -304,7 +318,11 @@ class DriverViewModel: ObservableObject {
                     totalPrice: trip.totalCost
                 )
             }
-            
+
+            // 🎯 核心交付物：行程完成后停止位置追踪
+            locationService.stopTracking()
+            print("📍 已停止实时位置追踪")
+
             print("✅ 行程已完成")
             
         } catch {
@@ -383,26 +401,9 @@ class DriverViewModel: ObservableObject {
         searchFilter = TripSearchFilter()
         applyFilters()
     }
-    
-    /// 搜索行程（关键词搜索）
-    func searchTrips(keyword: String) {
-        guard !keyword.isEmpty else {
-            applyFilters()
-            return
-        }
-        
-        let results = availableTrips.filter { trip in
-            trip.startLocation.localizedCaseInsensitiveContains(keyword) ||
-            trip.endLocation.localizedCaseInsensitiveContains(keyword) ||
-            trip.passengerName.localizedCaseInsensitiveContains(keyword) ||
-            trip.notes.localizedCaseInsensitiveContains(keyword)
-        }
-        
-        filteredTrips = results
-        
-        print("🔍 搜索结果: \(results.count) 条")
-    }
-    
+
+    // 🚫 搜索行程功能已移除 - 司机只能通过拼车大厅浏览订单
+
     /// 筛选指定时间附近的行程（±10分钟）
     /// 这是核心交付物之一：时间窗口筛选
     func filterTrips(near targetTime: Date, windowMinutes: Int = 10) -> [TripRequest] {
